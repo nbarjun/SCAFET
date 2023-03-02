@@ -304,6 +304,9 @@ class object_properties2D:
             cb.set_label(r'$degree$')
 
     def print_properties(self):
+        '''
+        A simple function to print the object properties
+        '''
         obj_value_unit = ['m','degree',\
                           'unitless','m',r'm$^2$', 'counts','m',\
                           'counts','counts','degrees','degrees',\
@@ -317,7 +320,6 @@ class object_properties2D:
 
     def __init__(self,grid_area,grid_land,length,area,smooth,theta_t,
                  min_duration,max_distance,shapei,eccentricity,lon_mask,lat_mask):
-
         '''
         The function defines and initializes the object properties
         '''
@@ -382,6 +384,10 @@ class object_properties3D:
     dimensinal features from rectilinear grid
     '''
     def wrapped(self,data):
+        '''
+        The function wraps global data around for calculating derivatives and
+        shape index
+        '''
         nlons = len(data.lon)//1 #No.of longitudes to be added to right side
         lf_nlons = 0
         #Wrap around in longitudes
@@ -389,16 +395,24 @@ class object_properties3D:
         wrap_lons = np.concatenate([data.lon.values,abs(data.lon.values[:nlons])+360])
         xwrap = xr.DataArray(wraped,coords={'lon':wrap_lons,'lat':data.lat.values},\
                              dims=['lat','lon'])
-
         return xwrap
 
     def remove_hole_lats(self,data,lat):
+        '''
+        Function to remove small holes from land data along lats
+        '''
         return remove_small_holes(data,lat)
 
     def remove_hole_lons(self,data,lon):
+        '''
+        Function to remove small holes from land data along lons
+        '''
         return remove_small_holes(data,lon[0])
 
     def remove_holes(self,data):
+        '''
+        Function to remove small holes from land data
+        '''
         removed = data
         return removed
 
@@ -413,6 +427,9 @@ class object_properties3D:
 
     #Function to get coastline information from landfraction
     def get_coastline_info(self,land):
+        '''
+        Function to get coastline information from landfraction
+        '''
         #Removing small water bodies
         island = land.islnd.fillna(0)
         land_filled = self.remove_holes(island.astype(bool))
@@ -437,6 +454,10 @@ class object_properties3D:
         return coast_info
 
     def mpcalc_grid_delta2D(self,dset):
+        '''
+        Function returns the grid distance in meters. It takes a latlon grid as
+        input
+        '''
         v = list(dset.data_vars)[0]
         #Calculate the grid deltas
         grid_delta = metpy.xarray.grid_deltas_from_dataarray(dset.metpy.parse_cf()[v].isel(time=0,lev=0))
@@ -456,6 +477,9 @@ class object_properties3D:
         return distance
 
     def plev_to_height(self,dset):
+        '''
+        Function converts pressure coordinates to height in meters
+        '''
         height = mpcalc.pressure_to_height_std(dset.lev)
         height = xr.Dataset({'height':(['lev'],height.data*1000)},coords={'lev':(['lev'],\
                                         dset.lev.values)})['height']
@@ -463,6 +487,10 @@ class object_properties3D:
         return height
 
     def calc_sigma(self,grid_area):
+        '''
+        Function calculates the value of the smoothing constant. The sigma is
+        calulated using the scale space selection value and grid distance
+        '''
         #Calculate the sigma of the gaussinan filter along each longitude; Values constant
         sigma_lat = np.rint(self.obj['Smooth_Scale']/np.squeeze(self.grid['ydistance']))
         sigma_lat = np.where(sigma_lat>len(grid_area.lat)//1,len(grid_area.lat)//1,sigma_lat)
@@ -480,6 +508,9 @@ class object_properties3D:
         return sigmas
 
     def plot_properties(self,option):
+        '''
+        A simple function to display all the grid and object properties
+        '''
         if option == 'grid':
             fig   = plt.figure(figsize=(12,4),dpi=300)
             spec  = gridspec.GridSpec(ncols=3, nrows=2,\
@@ -535,10 +566,9 @@ class object_properties3D:
             cb.set_label(r'$degree$')
 
     def print_properties(self):
-
-#         obj = {'Smooth_Scale':smooth,'Shape_Index':shapei,'Min_Length':min_length,\
-#                'Min_Projected_Area':min_area,'Map_Lons':map_lons,'Map_Lats':map_lats,\
-#                'isglobal':isglobal,'Lon_Mask':lon_mask,'Lat_Mask':lat_mask}
+        '''
+        A simple function to print the object properties
+        '''
         obj_value_unit = ['m','unitless','m','m',r'm$^3$','timestep','m',\
                           'degrees','degrees','hPa',\
                           '0-1','degrees','degrees']
@@ -551,7 +581,9 @@ class object_properties3D:
 
     def __init__(self,data,grid_area,xdistance,ydistance,zdistance,grid_land,length,height,volume,\
                  smooth,min_duration,max_distance,shapei,lon_mask,lat_mask):
-
+        '''
+        The function defines and initializes the object properties
+        '''
         min_length = 2e6 if length==[] else length
         min_height = 5e3 if height==[] else height
         min_volume = 1e10 if volume==[] else volume
