@@ -6,16 +6,8 @@ dask==2023.8.1
 dask-mpi==2022.4.0
 distributed==2023.8.1
 geopandas==0.13.2
-geopandas-base==0.13.2
 geopy==2.3.0
 geos==3.12.0
-geotiff==1.7.1
-hdf4==4.2.15
-hdf5==1.14.1
-icu==72.1
-importlib-metadata==6.8.0
-importlib_metadata==6.8.0
-importlib_resources==6.0.1
 ipykernel==6.25.1
 ipython==8.14.0
 matplotlib==3.7.2
