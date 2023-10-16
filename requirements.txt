@@ -9,8 +9,6 @@ geopandas==0.13.2
 geopy==2.3.0
 ipython==8.14.0
 matplotlib==3.7.2
-matplotlib-base==3.7.2
-matplotlib-inline==0.1.6
 metpy==1.5.1
 mpi==1.0
 mpi4py==3.1.4
