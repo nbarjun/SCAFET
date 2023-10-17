@@ -11,7 +11,6 @@ ipython==8.14.0
 matplotlib==3.7.2
 metpy==1.5.1
 mpi==1.0
-mpi4py==3.1.4
 netcdf4==1.6.4
 numba==0.57.1
 numpy==1.24.4
