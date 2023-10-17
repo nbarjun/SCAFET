@@ -5,19 +5,19 @@ import pandas as pd
 from geopy.distance import geodesic
 import itertools
 import time
+import sys
+sys.path.append('./scafet/')
+import object_properties as obp
+import ridge_detection as rd
+import object_filtering as obf
+import object_tracking as obt
 
-class Tracker:
-    '''
-    A tracker class initilized with properties like maximum distance travelled
-    per time step, minimum duration etc.
-    '''
+
+class Tracker:    
     def apply_tracking(self,object_properties,object_mask):
-        '''
-        The function applies tracking along time axis in rectilinear grids
-        '''
         tracked_objects = track_along_time(object_properties,self.basedon,\
                                           self.max_distance)
-
+        
         tlength = len(tracked_objects['time'].values)
         tstep = np.arange(1,tlength+1)
         tracks = tracked_objects.assign_coords({'times':('time',tstep)})
@@ -71,25 +71,25 @@ class Tracker:
                                 index=mindex).to_xarray().fillna(0)
             after_track = after_track.rename({'timestamp':'time'})
             after_track = after_track.rename({'label':'index'})
-
+            
             after_track = after_track.assign_coords(time=object_mask.time)
             before_track = before_track.assign_coords(time=object_mask.time)
-
+            
             tracked_mask = xr.apply_ufunc(remove_and_replace_labels, object_mask.object, \
                         before_track, after_track, vectorize=True,\
                         output_dtypes=[object_mask.object.dtype],\
                         input_core_dims=[['lat','lon'],['index'],['index']],\
                         output_core_dims=[['lat','lon']],dask='parallelized')
-
+        
         return xtracks,tracked_mask
 
     def apply_tracking_tgrid(self,object_properties,object_mask):
-        '''
-        The function applies tracking along time axis in tgrids
-        '''
         tracked_objects = track_along_time(object_properties,self.basedon,\
                                           self.max_distance)
-
+#         tracked_objects = tracked_objects.dropna(subset = ['travelled_distance'])
+#         tracked_objects = tracked_objects.where(\
+#                     ~np.isnan(tracked_objects['travelled_distance']))
+        
         tlength = len(tracked_objects['time'].values)
         tstep = np.arange(1,tlength+1)
         tracks = tracked_objects.assign_coords({'times':('time',tstep)})
@@ -105,17 +105,20 @@ class Tracker:
             sel_arrays.append(tracks[se].values.flatten())
         tracks_dframe = pd.DataFrame(np.transpose(sel_arrays),\
                                      columns=sel_elements)
+#         tracks_dframe = tracks_dframe.dropna(subset = ['travelled_distance'])
+#         print(tracks_dframe[['track_ids','travelled_distance']])
+#         print(tracks_dframe)
 
         tracked_ids = tracks_dframe.groupby(['track_ids'])
         tsteps_objs = tracked_ids.size()
-
+#         print(tsteps_objs)
+    
         obj_counts = pd.DataFrame(tracked_ids,columns=['track_ids','Objects'])
         obj_counts['nsteps'] = tsteps_objs.values
-
-        # Remove objects that not satisfy the minimum duration condition
+        
         robjects = obj_counts.where(obj_counts['nsteps']>self.min_duration).dropna()
         robjs = robjects.drop(['track_ids', 'nsteps'], axis = 1)
-
+#         print(robjs)
         nos = len(robjs.index)
 
         if nos==0:
@@ -128,7 +131,7 @@ class Tracker:
                 duration_tracks = robjs.values[0][0]
             else:
                 duration_tracks = pd.concat(np.squeeze(robjs.values).tolist(),axis=0)
-
+            
 #             print(duration_tracks.dropna(subset = ['travelled_distance']))
 #             dropna(subset = ['column1_name',
 #             tracks = duration_tracks.dropna()
@@ -153,14 +156,12 @@ class Tracker:
 #             print(after_track)
 #             print(before_track)
 #             print(object_mask)
-
-            # Remove the labels that does not satisfy the conditions
             tracked_mask = xr.apply_ufunc(remove_and_replace_labels, object_mask.object, \
                         before_track, after_track, vectorize=True,\
                         output_dtypes=[object_mask.object.dtype],\
                         input_core_dims=[['nlat_t','nlon_t'],['index'],['index']],\
                         output_core_dims=[['nlat_t','nlon_t']],dask='parallelized')
-
+            
 #             tracked_mask = xr.apply_ufunc(remove_and_replace_labels, object_mask.object, \
 #                         before_track, after_track, vectorize=True,\
 #                         output_dtypes=[object_mask.object.dtype],\
@@ -170,15 +171,12 @@ class Tracker:
         return xtracks,tracked_mask
 
     def apply_tracking3D(self,object_properties,object_mask):
-        '''
-        The function applies tracking along time axis for 3D grids
-        '''
         tracked_objects = track_along_time(object_properties,self.basedon,\
                                           self.max_distance)
 #         tracked_objects = tracked_objects.dropna(subset = ['travelled_distance'])
 #         tracked_objects = tracked_objects.where(\
 #                     ~np.isnan(tracked_objects['travelled_distance']))
-
+        
         tlength = len(tracked_objects['time'].values)
         tstep = np.arange(1,tlength+1)
         tracks = tracked_objects.assign_coords({'times':('time',tstep)})
@@ -199,10 +197,10 @@ class Tracker:
         tracked_ids = tracks_dframe.groupby(['track_ids'])
         tsteps_objs = tracked_ids.size()
 #         print(tsteps_objs)
-
+    
         obj_counts = pd.DataFrame(tracked_ids,columns=['track_ids','Objects'])
         obj_counts['nsteps'] = tsteps_objs.values
-
+        
         robjects = obj_counts.where(obj_counts['nsteps']>self.min_duration).dropna()
         robjs = robjects.drop(['track_ids', 'nsteps'], axis = 1)
 #         print(robjs)
@@ -218,7 +216,7 @@ class Tracker:
                 duration_tracks = robjs.values[0][0]
             else:
                 duration_tracks = pd.concat(np.squeeze(robjs.values).tolist(),axis=0)
-
+            
             tracks = duration_tracks.copy()
             xtracks = tracks.to_xarray().assign_coords({'index':\
                         tracks['track_ids'].values}).rename({'index':'id'})
@@ -245,20 +243,16 @@ class Tracker:
                         output_core_dims=[['lat','lon']],dask='parallelized')
 
         return xtracks,tracked_mask
-
+        
     def __init__(self,based,props):
-        '''
-        Initialize the proper of the tracker
-        '''
         self.max_distance = props.obj['Max_Distance']
         self.min_duration = props.obj['Min_Duration']+1
         self.basedon = based
-
-
+        
+    
 def remove_and_replace_labels(all_objects,old,new):
-    '''
-    Replaces old labels with new labels
-    '''
+#     print(all_objects.shape)
+#     print(old,new)
     objects=all_objects.copy()
     for o,n in zip(old,new):
         objects[np.where(all_objects==o)]=n
@@ -266,16 +260,13 @@ def remove_and_replace_labels(all_objects,old,new):
 
 
 def closest_obj_distance(lat0,lon0,lat1,lon1,id0,id1,max_d):
-    '''
-    Calculate distance to the closest objects between two timesteps
-    '''
     t0 = [(y,x) for y,x in zip(lat0[~np.isnan(lat0)],\
                                lon0[~np.isnan(lon0)])]
     t1 = [(y,x) for y,x in zip(lat1[~np.isnan(lat1)],\
                                lon1[~np.isnan(lon1)])]
 
     clist = [t0,t1]
-
+    
     if ((t1==[]) & (t0==[])):
         # print('Both Empty')
         track_ids = np.ones(len(lat0))*np.nan
@@ -296,10 +287,10 @@ def closest_obj_distance(lat0,lon0,lat1,lon1,id0,id1,max_d):
         # print(id0)
         idx = [id0[~np.isnan(id0)],id1[~np.isnan(id1)]]
         # print(idx)
-
+        
         idc = np.reshape([(p[0],p[1]) for p in itertools.product(*idx)],\
                      (len(t0),len(t1),2))
-
+    
         cords_comb = np.reshape([(p[0],p[1]) for p in itertools.product(*clist)],\
                        (len(t0),len(t1),4))
         distances = [geodesic(p[0],p[1]).km for p in itertools.product(*clist)]
@@ -322,8 +313,8 @@ def closest_obj_distance(lat0,lon0,lat1,lon1,id0,id1,max_d):
         else:
             print(t1,t0)
             print(min_distances, min_comb_id)
-
-        df = pd.DataFrame(result, columns=['Min_Distance','ID2','ID1'])
+            
+        df = pd.DataFrame(result, columns=['Min_Distance','ID2','ID1'])        
         df['nodup']= ~df.sort_values(by=['Min_Distance']).duplicated(subset=['ID1'])
         df['trackID'] = df['ID1'].where((df.nodup)&(df.Min_Distance<max_d),df['ID2'])
         # print(df)
@@ -333,15 +324,11 @@ def closest_obj_distance(lat0,lon0,lat1,lon1,id0,id1,max_d):
         closest_object = df['Min_Distance'].values
 #         print(closest_object)
         track_ids = df['trackID'].values
-
+    
     return closest_object,track_ids
 
 
 def track_along_time(objects,trackby,max_distance):
-    '''
-    The core function that calculates the distance between closest objects
-    between two timesteps
-    '''
     detected_objects = objects.transpose('time','index').dropna(dim='index',how='all')
     s = np.shape(detected_objects.label)
     track_ids = detected_objects.label*0+np.reshape(np.arange(1,s[0]*s[1]+1),s)
@@ -354,8 +341,11 @@ def track_along_time(objects,trackby,max_distance):
     id0 = detected_objects['track_ids'].values
     distance = np.empty(s)*np.nan
     ids = np.empty(s)*np.nan
-
-
+    
+    # print(lat0,lon0,id0)
+    # print(s)
+    # print(h)
+    
     for i in tqdm(range(1,s[0])):
         # print(i)
         distance[i],id0[i] = closest_obj_distance(lat0[i],lon0[i],lat0[i-1],lon0[i-1],\
@@ -365,3 +355,4 @@ def track_along_time(objects,trackby,max_distance):
     detected_objects['travelled_distance'] = detected_objects['track_ids']*0+distance
 #     print(detected_objects['track_ids']*0+id0,detected_objects['track_ids']*0+distance)
     return detected_objects
+
