@@ -361,8 +361,8 @@ def ridgeDetection2D_vector(vector,props):
     simple_gradient['lat'] = np.arange(len(simple_gradient['lat']))
     simple_gradient['lon'] = np.arange(len(simple_gradient['lon']))
 
-    zeroline = abs(xr.ufuncs.sign(simple_gradient).differentiate('lat'))+\
-                         abs(xr.ufuncs.sign(simple_gradient).differentiate('lon'))
+    zeroline = abs(np.sign(simple_gradient).differentiate('lat'))+\
+                         abs(np.sign(simple_gradient).differentiate('lon'))
 
     zeroline['lat'] = eigs['lat']
     zeroline['lon'] = eigs['lon']
